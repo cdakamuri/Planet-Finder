@@ -39,9 +39,9 @@ def load_samples():
     if SAMPLES is None:
         npz_path = model_setup.paths["sample_lightcurves.npz"]
         data = np.load(npz_path)
-        SAMPLES = data["model_input"]
+        SAMPLES = data["model_input"]   # already preprocessed — use directly for prediction
         SAMPLE_LABELS = data["labels"].tolist()
-        SAMPLE_RAW = data["raw"]
+        SAMPLE_RAW = data["raw"]        # raw flux values — use for chart display only
     return SAMPLES, SAMPLE_LABELS, SAMPLE_RAW
 
 class PredictRequest(BaseModel):
@@ -66,21 +66,22 @@ def health():
 
 @app.get("/samples")
 def get_samples():
-    _, labels, raw = load_samples()
+    samples, labels, raw = load_samples()
     exoplanet_indices = [i for i, l in enumerate(labels) if l == 1][:5]
     non_exoplanet_indices = [i for i, l in enumerate(labels) if l == 0][:5]
     selected = exoplanet_indices + non_exoplanet_indices
     result = []
     for i in selected:
-        preview = raw[i].tolist()
-        step = max(1, len(preview) // 200)
-        preview_small = preview[::step][:200]
+        raw_vals = raw[i].tolist()
+        step = max(1, len(raw_vals) // 200)
+        preview_small = raw_vals[::step][:200]
         result.append({
             "index": i,
             "label": labels[i],
             "label_name": "Exoplanet" if labels[i] == 1 else "Non-Exoplanet",
             "preview": preview_small,
-            "raw_values": raw[i].tolist(),
+            "raw_values": raw_vals,
+            "processed_values": samples[i].flatten().tolist(),  # model_input — correct preprocessing
         })
     return result
 
@@ -94,10 +95,12 @@ def predict(req: PredictRequest):
     model = load_model()
     arr = np.array(req.values, dtype=np.float64)
     if req.preprocess:
+        # z-score normalize for user-supplied raw flux values
         mean = arr.mean()
         std = arr.std()
         if std > 0:
             arr = (arr - mean) / std
+    # else: values are already preprocessed (e.g. from model_input) — use as-is
     arr = arr.reshape(1, 3197, 1)
     prob = float(model.predict(arr, verbose=0)[0][0])
     label = 1 if prob >= 0.5 else 0
