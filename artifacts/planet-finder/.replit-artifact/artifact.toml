@@ -1,0 +1,45 @@
+kind = "web"
+previewPath = "/"
+title = "Planet Finder"
+version = "1.0.0"
+id = "artifacts/planet-finder"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 26227
+
+[services.development]
+run = "pnpm --filter @workspace/planet-finder run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/planet-finder", "run", "build" ]
+publicDir = "artifacts/planet-finder/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "26227"
+BASE_PATH = "/"
+
+[[services]]
+name = "model-api"
+paths = [ "/model-api" ]
+localPort = 8000
+
+[services.development]
+run = "python3 /home/runner/workspace/python-backend/main.py"
+
+[services.production]
+run = "python3 /home/runner/workspace/python-backend/main.py"
+
+[services.env]
+PYTHON_PORT = "8000"
