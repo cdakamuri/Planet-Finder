@@ -4,7 +4,7 @@ import { fetchSamples, predictExoplanet, Sample, PredictionResult } from '@/lib/
 import { LightCurveChart } from '@/components/LightCurveChart';
 import { Sparkline } from '@/components/Sparkline';
 import { Button } from '@/components/ui/button';
-import { Loader2, Upload, ClipboardPaste, Database, FlaskConical, AlertCircle, CheckCircle2, X } from 'lucide-react';
+import { Loader2, Upload, ClipboardPaste, Database, FlaskConical, AlertCircle, CheckCircle2, X, Copy, Check } from 'lucide-react';
 import { Card, CardHeader, CardContent, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -249,6 +249,15 @@ export default function Home() {
 
         {mode === 'custom' && (
           <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-400">
+
+            <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 text-sm flex gap-3">
+              <AlertCircle className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+              <div className="space-y-1 text-muted-foreground">
+                <p><span className="text-foreground font-medium">Expected format:</span> Pre-processed flux residuals — detrended, normalized values roughly centered near 0 with standard deviation around 0.5–1.0.</p>
+                <p>Raw Kepler photon counts will not work directly. Use the <span className="text-primary font-medium">Sample Library</span> to copy processed values from a known light curve as a reference.</p>
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-3">
                 <label className="text-sm font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
@@ -260,7 +269,7 @@ export default function Home() {
                     data-testid="input-custom-flux"
                     value={customText}
                     onChange={e => handleCustomTextChange(e.target.value)}
-                    placeholder={`Paste ${REQUIRED_VALUES.toLocaleString()} comma- or newline-separated flux values here...\n\nExample:\n119.88, 100.21, 86.46, 48.68, ...`}
+                    placeholder={`Paste ${REQUIRED_VALUES.toLocaleString()} pre-processed flux values...\n\nExample (processed format):\n0.196, 0.247, 0.212, 0.193, 0.144, ...\n\nTip: Copy processed values from a Sample Library card to test the format.`}
                     className="w-full h-64 rounded-xl border border-border bg-card/60 p-4 text-sm font-mono text-foreground placeholder:text-muted-foreground/50 resize-none focus:outline-none focus:border-primary/60 focus:ring-1 focus:ring-primary/30 transition-all backdrop-blur-sm"
                     spellCheck={false}
                   />
@@ -310,10 +319,11 @@ export default function Home() {
 
                 <div className="rounded-xl border border-border/50 bg-card/30 p-4 space-y-2 text-xs text-muted-foreground">
                   <p className="font-semibold uppercase tracking-wider text-foreground/60 text-[10px]">Format guide</p>
-                  <p>• One value per line <span className="font-mono text-foreground/50">119.88\n100.21\n...</span></p>
-                  <p>• Comma-separated <span className="font-mono text-foreground/50">119.88, 100.21, ...</span></p>
-                  <p>• Single-column CSV (header row is ignored if non-numeric)</p>
-                  <p>• Exactly {REQUIRED_VALUES.toLocaleString()} flux measurements required</p>
+                  <p>• One value per line <span className="font-mono text-foreground/40">0.196\n0.247\n...</span></p>
+                  <p>• Comma-separated <span className="font-mono text-foreground/40">0.196, 0.247, ...</span></p>
+                  <p>• Single-column CSV (non-numeric header is skipped)</p>
+                  <p>• Exactly {REQUIRED_VALUES.toLocaleString()} values required</p>
+                  <p>• Values should be pre-processed residuals, not raw flux counts</p>
                 </div>
               </div>
             </div>
@@ -327,7 +337,7 @@ export default function Home() {
                   <Button
                     data-testid="button-analyze-custom"
                     size="lg"
-                    onClick={() => handlePredict(customValues)}
+                    onClick={() => handlePredict(customValues, false)}
                     disabled={!canAnalyze}
                     className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-10 h-12 shadow-[0_0_15px_rgba(0,255,255,0.3)] hover:shadow-[0_0_25px_rgba(0,255,255,0.5)] transition-all"
                   >
@@ -422,6 +432,17 @@ function PredictionPanel({ result, error }: { result: PredictionResult | null; e
 }
 
 function SampleCard({ sample, isSelected, onSelect }: { sample: Sample; isSelected: boolean; onSelect: () => void }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    const text = sample.processed_values.join(', ');
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }, [sample.processed_values]);
+
   return (
     <div
       data-testid={`card-sample-${sample.index}`}
@@ -442,6 +463,19 @@ function SampleCard({ sample, isSelected, onSelect }: { sample: Sample; isSelect
             {sample.label_name}
           </Badge>
         </div>
+        <button
+          data-testid={`button-copy-processed-${sample.index}`}
+          onClick={handleCopy}
+          title="Copy processed values for custom input"
+          className={`opacity-0 group-hover:opacity-100 transition-all duration-200 p-1.5 rounded-lg text-xs flex items-center gap-1 ${
+            copied
+              ? 'text-green-400 bg-green-400/10'
+              : 'text-muted-foreground hover:text-primary hover:bg-primary/10'
+          }`}
+        >
+          {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+          <span className="font-mono">{copied ? 'Copied' : 'Copy'}</span>
+        </button>
       </div>
       <div className="opacity-70 group-hover:opacity-100 transition-opacity">
         <Sparkline data={sample.preview} />
