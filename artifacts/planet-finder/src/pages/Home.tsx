@@ -55,12 +55,12 @@ export default function Home() {
     setPredictionError(null);
   }, []);
 
-  const handlePredict = useCallback(async (values: number[]) => {
+  const handlePredict = useCallback(async (values: number[], preprocess = true) => {
     setPredicting(true);
     setPredictionResult(null);
     setPredictionError(null);
     try {
-      const result = await predictExoplanet(values);
+      const result = await predictExoplanet(values, preprocess);
       setPredictionResult(result);
     } catch {
       setPredictionError('Error running prediction sequence.');
@@ -223,7 +223,7 @@ export default function Home() {
                         <Button
                           data-testid="button-analyze-library"
                           size="lg"
-                          onClick={() => handlePredict(selectedSample.raw_values)}
+                          onClick={() => handlePredict(selectedSample.processed_values, false)}
                           disabled={predicting}
                           className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-8 h-12 shadow-[0_0_15px_rgba(0,255,255,0.3)] hover:shadow-[0_0_25px_rgba(0,255,255,0.5)] transition-all"
                         >
